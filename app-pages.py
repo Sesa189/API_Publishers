@@ -7,8 +7,25 @@ from pymongo import AsyncMongoClient
 from motor.motor_asyncio import AsyncIOMotorClient as AsyncMongoClient
 
 class PublishersHandler(tornado.web.RequestHandler):
-    async def get(self):
-        pass
+    async def get(self, publisher_id=None):
+        if not publisher_id:
+            name = self.get_query_argument("name", default=None)
+            country = self.get_query_argument("country", default=None)
+            found = []
+            if name or country:
+                documents = publishers_collection.find({"$or": [{"name": name}, {"country": country}]})
+            else:
+                documents = publishers_collection.find()
+            async for document in documents:
+                document["_id"] = str(document["_id"])
+                found.append(document)
+            self.write(json.dumps(found))
+        else:
+            if publisher_id:
+                doc = await publishers_collection.find_one({"_id": ObjectId(publisher_id)})
+                doc["_id"] = str(doc["_id"])
+                self.write(doc)
+
 
 class BooksHandler(tornado.web.RequestHandler):
     async def get(self):
