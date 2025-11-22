@@ -6,6 +6,21 @@ import tornado.web
 from pymongo import AsyncMongoClient
 from motor.motor_asyncio import AsyncIOMotorClient as AsyncMongoClient
 
+def filtra_books(found, title=None ,author=None, genre=None ):
+    if title:
+        for doc in found:
+            if title not in doc["name"]:
+                found.remove(doc)
+    if author:
+        for doc in found:
+            if author not in doc["name"]:
+                found.remove(doc)
+    if genre:
+        for doc in found:
+            if genre != doc["name"]:
+                found.remove(doc)
+    return found
+
 class PublishersHandler(tornado.web.RequestHandler):
     async def get(self, publisher_id=None):
         if not publisher_id:
@@ -72,8 +87,24 @@ class PublishersHandler(tornado.web.RequestHandler):
 
 
 class BooksHandler(tornado.web.RequestHandler):
-    async def get(self):
-        pass
+    async def get(self, publisher_id, book_id=None):
+        if not book_id:
+            title = self.get_query_argument("title", default=None)
+            author = self.get_query_argument("author", default=None)
+            genre = self.get_query_argument("genre", default=None)
+            found = []
+            documents = books_collection.find({"publisher_id": publisher_id})
+            async for document in documents:
+                found.append(document)
+            found = filtra_books(title, author,
+                                 genre)  # Filtro la lista di books, se non ci sono parametri di filtro la funzione semplicemente non fa niente
+            self.set_status(201)
+            self.write(json.dumps(found))
+        else:
+            if book_id:
+                doc = await books_collection.find_one({"$and": [{"publisher_id": publisher_id}, {"_id": book_id}]})
+                self.set_status(201)
+                self.write(doc)
 
 def make_app():
     return tornado.web.Application([
