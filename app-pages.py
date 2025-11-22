@@ -67,6 +67,9 @@ class PublishersHandler(tornado.web.RequestHandler):
             self.set_status(400)
             self.write("JSON fornito non valido.")
 
+    async def delete(self, publisher_id):
+        await publishers_collection.delete_one({"_id": publisher_id})
+
 
 class BooksHandler(tornado.web.RequestHandler):
     async def get(self):
