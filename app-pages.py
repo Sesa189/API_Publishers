@@ -45,6 +45,28 @@ class PublishersHandler(tornado.web.RequestHandler):
             self.set_status(400)
             self.write("JSON fornito non valido.")
 
+    async def put(self, publisher_id):
+        self.set_header("Content-Type", "application/json")
+        data = tornado.escape.json_decode(self.request.body)
+
+        if data["name"] and data["founded_year"] and data["country"]:
+            doc = {
+                "name": data["name"],
+                "founded_year": data["founded_year"],
+                "country": data["country"]
+            }
+            result = await publishers_collection.insert_one(doc)
+            doc["_id"] = str(result.inserted_id)
+            await publishers_collection.replace_one(
+                {"_id": publisher_id},
+                doc
+            )
+            self.set_status(201)
+            self.write(doc)
+        else:
+            self.set_status(400)
+            self.write("JSON fornito non valido.")
+
 
 class BooksHandler(tornado.web.RequestHandler):
     async def get(self):
