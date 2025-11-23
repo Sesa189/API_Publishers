@@ -91,7 +91,10 @@ class PublishersHandler(tornado.web.RequestHandler):
             self.write("JSON fornito non valido.")
 
     async def delete(self, publisher_id):
-        await publishers_collection.delete_one({"_id": ObjectId(publisher_id)})
+        result = await publishers_collection.delete_one({"_id": ObjectId(publisher_id)})
+        if result.deleted_count == 1:
+            self.set_status(201)
+            self.write("Publisher eliminato correttamente.")
 
 
 class BooksHandler(tornado.web.RequestHandler):
