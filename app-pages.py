@@ -79,12 +79,11 @@ class PublishersHandler(tornado.web.RequestHandler):
                 "founded_year": data["founded_year"],
                 "country": data["country"]
             }
-            result = await publishers_collection.insert_one(doc)
-            doc["_id"] = str(result.inserted_id)
             await publishers_collection.replace_one(
-                {"_id": publisher_id},
+                {"_id": ObjectId(publisher_id)},
                 doc
             )
+            doc["_id"] = publisher_id
             self.set_status(201)
             self.write(doc)
         else:
