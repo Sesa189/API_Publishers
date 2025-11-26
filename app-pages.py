@@ -24,15 +24,17 @@ def filtra_books(found, title=None ,author=None, genre=None ):
 
 class PublishersHandler(tornado.web.RequestHandler):
     async def get(self, publisher_id=None):
-        self.set_header("Content-Type", "application/json")
         if not publisher_id:
             name = self.get_query_argument("name", default=None)
             country = self.get_query_argument("country", default=None)
             found = []
-            if name and country:
-                documents = publishers_collection.find({"$and": [{"name": name}, {"country": country}]})
-            elif name or country:
-                documents = publishers_collection.find({"$or": [{"name": name}, {"country": country}]})
+            search = []
+            if name or country:
+                if name:
+                    search.apped({"name": name})
+                if country:
+                    search.apped({"country": country})
+                documents = publishers_collection.find({"$and": search})
             else:
                 documents = publishers_collection.find()
             async for document in documents:
@@ -87,7 +89,7 @@ class PublishersHandler(tornado.web.RequestHandler):
             self.set_status(201)
             self.write(doc)
         else:
-            self.set_status(400)
+            self.set_status(500)
             self.write("JSON fornito non valido.")
 
     async def delete(self, publisher_id):
@@ -104,18 +106,30 @@ class BooksHandler(tornado.web.RequestHandler):
             author = self.get_query_argument("author", default=None)
             genre = self.get_query_argument("genre", default=None)
             found = []
-            documents = books_collection.find({"publisher_id": publisher_id})
+            search = []
+            if title or author or genre:
+                if title:
+                    search.apped({"title": title})
+                if author:
+                    search.apped({"author": author})
+                if genre:
+                    search.apped({"genre": genre})
+                documents = books_collection.find({"_id": ObjectId(book_id), "$and": search})
+            else:
+                documents = books_collection.find()
             async for document in documents:
+                document["_id"] = str(document["_id"])
                 found.append(document)
-            found = filtra_books(title, author,
-                                 genre)  # Filtro la lista di books, se non ci sono parametri di filtro la funzione semplicemente non fa niente
-            self.set_status(201)
             self.write(json.dumps(found))
         else:
-            if book_id:
-                doc = await books_collection.find_one({"$and": [{"publisher_id": publisher_id}, {"_id": book_id}]})
-                self.set_status(201)
-                self.write(doc)
+            doc = await books_collection.find_one({"_id": ObjectId(book_id)})
+            if doc:
+                doc["_id"] = str(doc["_id"])
+                self.set_status(200)
+                self.write(json.dumps(doc))
+            else:
+                self.set_status(404)
+                self.write("Libro inesistente.")
 
     async def post(self, publisher_id):
         self.set_header("Content-Type", "application/json")
@@ -168,7 +182,7 @@ def make_app(publishers_collection, books_collection):
         (r"/publishers", PublishersHandler),
         (r"/publishers/([0-9a-fA-F]{24})", PublishersHandler),
         (r"/publishers/([0-9a-fA-F]{24})/books", BooksHandler),
-        (r"/publishers/([0-9a-fA-F]{24})/books/([0-9a-f]{24})", BooksHandler)
+        (r"/publishers/([0-9a-fA-F]{24})/books/([0-9a-fA-F]{24})", BooksHandler)
     ], publishers=publishers_collection, books=books_collection)
 
 async def main():
