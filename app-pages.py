@@ -4,7 +4,7 @@ from bson import ObjectId
 
 import tornado.web
 from pymongo import AsyncMongoClient
-from motor.motor_asyncio import AsyncIOMotorClient as AsyncMongoClient, AsyncIOMotorClient
+#from motor.motor_asyncio import AsyncIOMotorClient as AsyncMongoClient, AsyncIOMotorClient
 #commitato e pushato
 
 def filtra_books(found, title=None ,author=None, genre=None ):
@@ -28,13 +28,13 @@ class PublishersHandler(tornado.web.RequestHandler):
             name = self.get_query_argument("name", default=None)
             country = self.get_query_argument("country", default=None)
             found = []
-            search = []
+            search = {}
             if name or country:
                 if name:
-                    search.apped({"name": name})
+                    search["name"] = name
                 if country:
-                    search.apped({"country": country})
-                documents = publishers_collection.find({"$and": search})
+                    search["country"] = country
+                documents = publishers_collection.find(search)
             else:
                 documents = publishers_collection.find()
             async for document in documents:
@@ -106,15 +106,15 @@ class BooksHandler(tornado.web.RequestHandler):
             author = self.get_query_argument("author", default=None)
             genre = self.get_query_argument("genre", default=None)
             found = []
-            search = []
+            search = {}
             if title or author or genre:
                 if title:
-                    search.apped({"title": title})
+                    search["title"] = title
                 if author:
-                    search.apped({"author": author})
+                    search["author"] = author
                 if genre:
-                    search.apped({"genre": genre})
-                documents = books_collection.find({"_id": ObjectId(book_id), "$and": search})
+                    search["genre"] = genre
+                documents = books_collection.find(search)
             else:
                 documents = books_collection.find()
             async for document in documents:
@@ -177,6 +177,7 @@ class BooksHandler(tornado.web.RequestHandler):
     async def delete(self, publisher_id, book_id):
         await books_collection.delete_one({"publisher_id": publisher_id, "_id": book_id})
 
+'''
 def make_app(publishers_collection, books_collection):
     return tornado.web.Application([
         (r"/publishers", PublishersHandler),
@@ -210,8 +211,8 @@ if __name__ == "__main__":
         loop.run_until_complete(main())
     finally:
         loop.close()
-
 '''
+
 def make_app():
     return tornado.web.Application([
         (r"/publishers", PublishersHandler),
@@ -228,8 +229,8 @@ async def main(shutdown_event):
     print("Chiusura server...")
 
 if __name__ == "__main__":
-    client = AsyncMongoClient("mongodb+srv://cesarenappa_db_user:ogGknHucqHIWqAhi@apipublishers.qzfrfsp.mongodb.net/?appName=APIpublishers")
-    #client = AsyncMongoClient("localhost", 27017)
+    #client = AsyncMongoClient("mongodb+srv://cesarenappa_db_user:ogGknHucqHIWqAhi@apipublishers.qzfrfsp.mongodb.net/?appName=APIpublishers")
+    client = AsyncMongoClient("localhost", 27017)
     db = client["publisher_db"]
     publishers_collection = db["publishers"]
     books_collection = db["books"]
@@ -238,4 +239,4 @@ if __name__ == "__main__":
         asyncio.run(main(shutdown_event))
     except KeyboardInterrupt:
         shutdown_event.set()
-'''
+
