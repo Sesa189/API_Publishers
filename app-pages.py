@@ -3,8 +3,8 @@ import json
 from bson import ObjectId
 
 import tornado.web
-from pymongo import AsyncMongoClient
-#from motor.motor_asyncio import AsyncIOMotorClient as AsyncMongoClient, AsyncIOMotorClient
+#from pymongo import AsyncMongoClient
+from motor.motor_asyncio import AsyncIOMotorClient as AsyncMongoClient, AsyncIOMotorClient
 #commitato e pushato
 
 def filtra_books(found, title=None ,author=None, genre=None ):
@@ -81,13 +81,17 @@ class PublishersHandler(tornado.web.RequestHandler):
                 "founded_year": data["founded_year"],
                 "country": data["country"]
             }
-            await publishers_collection.replace_one(
+            result = await publishers_collection.replace_one(
                 {"_id": ObjectId(publisher_id)},
                 doc
             )
             doc["_id"] = publisher_id
-            self.set_status(201)
-            self.write(doc)
+            if result.matched_count == 0:
+                self.set_status(404)
+                self.write("Publisher o libro inesistente.")
+            else:
+                self.set_status(200)
+                self.write(doc)
         else:
             self.set_status(500)
             self.write("JSON fornito non valido.")
@@ -97,6 +101,9 @@ class PublishersHandler(tornado.web.RequestHandler):
         if result.deleted_count == 1:
             self.set_status(201)
             self.write("Publisher eliminato correttamente.")
+        else:
+            self.set_status(404)
+            self.write("Publisher non trovato.")
 
 
 class BooksHandler(tornado.web.RequestHandler):
@@ -107,6 +114,7 @@ class BooksHandler(tornado.web.RequestHandler):
             genre = self.get_query_argument("genre", default=None)
             found = []
             search = {}
+            search["publisher_id"] = publisher_id
             if title or author or genre:
                 if title:
                     search["title"] = title
@@ -116,7 +124,7 @@ class BooksHandler(tornado.web.RequestHandler):
                     search["genre"] = genre
                 documents = books_collection.find(search)
             else:
-                documents = books_collection.find()
+                documents = books_collection.find(search)
             async for document in documents:
                 document["_id"] = str(document["_id"])
                 found.append(document)
@@ -162,22 +170,31 @@ class BooksHandler(tornado.web.RequestHandler):
                 "author": data["author"],
                 "genre": data["genre"]
             }
-            result = await publishers_collection.insert_one(doc)
-            doc["_id"] = str(result.inserted_id)
-            await publishers_collection.replace_one(
-                {"_id": book_id},
+            result = await books_collection.replace_one(
+                {"_id": ObjectId(book_id)},
                 doc
             )
-            self.set_status(201)
-            self.write(doc)
+            doc["_id"] = book_id
+            if result.matched_count == 0:
+                self.set_status(404)
+                self.write("Publisher o libro inesistente.")
+            else:
+                self.set_status(200)
+                self.write(doc)
         else:
             self.set_status(400)
             self.write("JSON fornito non valido.")
 
     async def delete(self, publisher_id, book_id):
-        await books_collection.delete_one({"publisher_id": publisher_id, "_id": book_id})
+        result = await books_collection.delete_one({"_id": ObjectId(book_id)})
+        if result.deleted_count == 1:
+            self.set_status(201)
+            self.write("Libro eliminato correttamente.")
+        else:
+            self.set_status(404)
+            self.write("Libro non trovato.")
 
-'''
+
 def make_app(publishers_collection, books_collection):
     return tornado.web.Application([
         (r"/publishers", PublishersHandler),
@@ -240,3 +257,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         shutdown_event.set()
 
+'''
